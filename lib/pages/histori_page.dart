@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/gold_price.dart';
+import '../services/api_service.dart';
+
 class HistoriPage extends StatefulWidget {
   const HistoriPage({super.key});
 
@@ -9,71 +12,53 @@ class HistoriPage extends StatefulWidget {
 }
 
 class _HistoriPageState extends State<HistoriPage> {
-  int selectedCommodity = 2;
+  int selectedCommodity = 0;
   int selectedDateFilter = 0;
   int currentPage = 1;
 
   final TextEditingController searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> historyData = [
-    {
-      'date': '24/05/2025',
-      'open': '1.488.000',
-      'high': '1.498.500',
-      'low': '1.484.000',
-      'close': '1.496.000',
-      'change': '+8.000',
-      'percent': '(+0.54%)',
-      'up': true,
-    },
-    {
-      'date': '23/05/2025',
-      'open': '1.492.000',
-      'high': '1.495.000',
-      'low': '1.485.000',
-      'close': '1.488.000',
-      'change': '-4.000',
-      'percent': '(-0.27%)',
-      'up': false,
-    },
-    {
-      'date': '22/05/2025',
-      'open': '1.479.000',
-      'high': '1.494.000',
-      'low': '1.476.500',
-      'close': '1.492.000',
-      'change': '+13.000',
-      'percent': '(+0.88%)',
-      'up': true,
-    },
-    {
-      'date': '21/05/2025',
-      'open': '1.482.000',
-      'high': '1.486.000',
-      'low': '1.475.000',
-      'close': '1.479.000',
-      'change': '-3.000',
-      'percent': '(-0.20%)',
-      'up': false,
-    },
-    {
-      'date': '20/05/2025',
-      'open': '1.470.000',
-      'high': '1.484.500',
-      'low': '1.468.000',
-      'close': '1.482.000',
-      'change': '+12.000',
-      'percent': '(+0.82%)',
-      'up': true,
-    },
-  ];
+  List<GoldPrice> _goldPrices = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+
     searchController.addListener(() {
-      setState(() {});
+      setState(() {
+        currentPage = 1;
+      });
     });
+
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final data = await ApiService.getGoldPrices();
+
+      if (!mounted) return;
+
+      setState(() {
+        _goldPrices = data;
+        _isLoading = false;
+        currentPage = 1;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+    }
   }
 
   @override
@@ -83,25 +68,160 @@ class _HistoriPageState extends State<HistoriPage> {
   }
 
   List<Map<String, dynamic>> get filteredData {
-    final query = searchController.text.trim().toLowerCase();
+    String selectedCode;
 
-    if (query.isEmpty) {
-      return historyData;
+    if (selectedCommodity == 0) {
+      selectedCode = 'LGD';
+    } else if (selectedCommodity == 1) {
+      selectedCode = 'HSI';
+    } else {
+      selectedCode = 'SNI';
     }
 
-    return historyData.where((item) {
-      return item['date'].toString().toLowerCase().contains(query) ||
-          item['open'].toString().toLowerCase().contains(query) ||
-          item['high'].toString().toLowerCase().contains(query) ||
-          item['low'].toString().toLowerCase().contains(query) ||
-          item['close'].toString().toLowerCase().contains(query);
+    final data = _goldPrices
+        .where(
+          (item) => item.commodity.toUpperCase() == selectedCode.toUpperCase(),
+        )
+        .toList();
+
+    data.sort((a, b) {
+      final dateA = a.recordedAt ?? DateTime(1900);
+      final dateB = b.recordedAt ?? DateTime(1900);
+
+      return dateB.compareTo(dateA);
+    });
+
+    final now = DateTime.now();
+
+    final dateFiltered = data.where((item) {
+      final date = item.recordedAt;
+
+      if (date == null) {
+        return false;
+      }
+
+      switch (selectedDateFilter) {
+        case 1:
+          return date.year == now.year && date.month == now.month;
+
+        case 2:
+          final threeMonthsAgo = DateTime(now.year, now.month - 2, 1);
+
+          return !date.isBefore(threeMonthsAgo);
+
+        case 3:
+          final oneYearAgo = DateTime(now.year - 1, now.month, now.day);
+
+          return !date.isBefore(oneYearAgo);
+
+        case 4:
+          return true;
+
+        default:
+          return true;
+      }
     }).toList();
+
+    final query = searchController.text.trim().toLowerCase();
+
+    final searchFiltered = dateFiltered.where((item) {
+      final dateText = _formatDate(item.recordedAt);
+
+      return dateText.toLowerCase().contains(query) ||
+          item.open.toString().toLowerCase().contains(query) ||
+          item.high.toString().toLowerCase().contains(query) ||
+          item.low.toString().toLowerCase().contains(query) ||
+          item.close.toString().toLowerCase().contains(query);
+    }).toList();
+
+    return searchFiltered.map((item) {
+      final currentClose = item.close ?? item.price;
+
+      final currentIndex = data.indexOf(item);
+
+      double? previousClose;
+
+      if (currentIndex >= 0 && currentIndex + 1 < data.length) {
+        final previous = data[currentIndex + 1];
+
+        previousClose = previous.close ?? previous.price;
+      }
+
+      double change = 0;
+      double percent = 0;
+
+      if (previousClose != null && previousClose != 0) {
+        change = currentClose - previousClose;
+        percent = (change / previousClose) * 100;
+      }
+
+      return {
+        'date': _formatDate(item.recordedAt),
+        'open': _formatNumber(item.open),
+        'high': _formatNumber(item.high),
+        'low': _formatNumber(item.low),
+        'close': _formatNumber(item.close ?? item.price),
+        'change': _formatChange(change),
+        'percent': _formatPercent(percent),
+        'up': change >= 0,
+      };
+    }).toList();
+  } // ← INI PENUTUP filteredData
+
+  // ============================================================
+  // FORMATTER
+  // ============================================================
+
+  String _formatDate(DateTime? date) {
+    if (date == null) {
+      return '-';
+    }
+
+    final day = date.day.toString().padLeft(2, '0');
+
+    final month = date.month.toString().padLeft(2, '0');
+
+    final year = date.year.toString();
+
+    return '$day/$month/$year';
   }
+
+  String _formatNumber(double? value) {
+    if (value == null) {
+      return '-';
+    }
+
+    return value.toStringAsFixed(2);
+  }
+
+  String _formatChange(double value) {
+    if (value == 0) {
+      return '0.00';
+    }
+
+    final sign = value > 0 ? '+' : '';
+
+    return '$sign${value.toStringAsFixed(2)}';
+  }
+
+  String _formatPercent(double value) {
+    if (value == 0) {
+      return '(0.00%)';
+    }
+
+    final sign = value > 0 ? '+' : '';
+
+    return '($sign${value.toStringAsFixed(2)}%)';
+  }
+
+  // ============================================================
+  // RESET FILTER
+  // ============================================================
 
   void resetFilter() {
     setState(() {
       selectedDateFilter = 0;
-      selectedCommodity = 2;
+      selectedCommodity = 0;
       currentPage = 1;
       searchController.clear();
     });
@@ -114,11 +234,7 @@ class _HistoriPageState extends State<HistoriPage> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: Color(0xFF6FFBBE),
-              size: 20,
-            ),
+            const Icon(Icons.check_circle, color: Color(0xFF6FFBBE), size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -132,9 +248,7 @@ class _HistoriPageState extends State<HistoriPage> {
           ],
         ),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -214,11 +328,7 @@ class _HistoriPageState extends State<HistoriPage> {
               color: const Color(0xFF785600),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.show_chart,
-              color: Colors.white,
-              size: 22,
-            ),
+            child: const Icon(Icons.show_chart, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -302,16 +412,9 @@ class _HistoriPageState extends State<HistoriPage> {
             decoration: BoxDecoration(
               color: const Color(0xFFE5EEFF),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0x33785600),
-                width: 2,
-              ),
+              border: Border.all(color: const Color(0x33785600), width: 2),
             ),
-            child: const Icon(
-              Icons.person,
-              size: 18,
-              color: Color(0xFF785600),
-            ),
+            child: const Icon(Icons.person, size: 18, color: Color(0xFF785600)),
           ),
           const SizedBox(width: 6),
         ],
@@ -344,10 +447,7 @@ class _HistoriPageState extends State<HistoriPage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFDEA6),
                   borderRadius: BorderRadius.circular(20),
@@ -480,9 +580,7 @@ class _HistoriPageState extends State<HistoriPage> {
           SizedBox(
             width: 90,
             height: 32,
-            child: CustomPaint(
-              painter: _SparklinePainter(),
-            ),
+            child: CustomPaint(painter: _SparklinePainter()),
           ),
         ],
       ),
@@ -582,11 +680,7 @@ class _HistoriPageState extends State<HistoriPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.policy_outlined,
-            size: 20,
-            color: Color(0xFF785600),
-          ),
+          const Icon(Icons.policy_outlined, size: 20, color: Color(0xFF785600)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -668,11 +762,7 @@ class _HistoriPageState extends State<HistoriPage> {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.tune,
-                size: 18,
-                color: Color(0xFF785600),
-              ),
+              const Icon(Icons.tune, size: 18, color: Color(0xFF785600)),
               const SizedBox(width: 7),
               Text(
                 'Parameter Filter',
@@ -713,12 +803,7 @@ class _HistoriPageState extends State<HistoriPage> {
   }
 
   Widget _buildDateFilters() {
-    final filters = [
-      'Bulan Ini',
-      '3 Bulan Terakhir',
-      '1 Tahun',
-      'Kustom',
-    ];
+    final filters = ['Bulan Ini', '3 Bulan Terakhir', '1 Tahun', 'Kustom'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -815,8 +900,8 @@ class _HistoriPageState extends State<HistoriPage> {
               value: selectedCommodity == 2
                   ? 'SNI 99.99% Emas Murni Fisik'
                   : selectedCommodity == 1
-                      ? 'HSI Gold'
-                      : 'LGD Gold',
+                  ? 'HSI Gold'
+                  : 'LGD Gold',
               isExpanded: true,
               icon: const Icon(
                 Icons.keyboard_arrow_down,
@@ -827,14 +912,8 @@ class _HistoriPageState extends State<HistoriPage> {
                 color: const Color(0xFF0B1C30),
               ),
               items: const [
-                DropdownMenuItem(
-                  value: 'LGD Gold',
-                  child: Text('LGD Gold'),
-                ),
-                DropdownMenuItem(
-                  value: 'HSI Gold',
-                  child: Text('HSI Gold'),
-                ),
+                DropdownMenuItem(value: 'LGD Gold', child: Text('LGD Gold')),
+                DropdownMenuItem(value: 'HSI Gold', child: Text('HSI Gold')),
                 DropdownMenuItem(
                   value: 'SNI 99.99% Emas Murni Fisik',
                   child: Text('SNI 99.99% Emas Murni Fisik'),
@@ -903,10 +982,7 @@ class _HistoriPageState extends State<HistoriPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: Color(0xFF785600),
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF785600), width: 1),
             ),
           ),
         ),
@@ -952,18 +1028,9 @@ class _HistoriPageState extends State<HistoriPage> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _exportButton(
-                'CSV',
-                Icons.table_view_outlined,
-              ),
-              _exportButton(
-                'XLSX',
-                Icons.description_outlined,
-              ),
-              _exportButton(
-                'PDF',
-                Icons.picture_as_pdf_outlined,
-              ),
+              _exportButton('CSV', Icons.table_view_outlined),
+              _exportButton('XLSX', Icons.description_outlined),
+              _exportButton('PDF', Icons.picture_as_pdf_outlined),
             ],
           ),
         ],
@@ -975,10 +1042,7 @@ class _HistoriPageState extends State<HistoriPage> {
     return GestureDetector(
       onTap: () => showExportMessage(title),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
@@ -993,11 +1057,7 @@ class _HistoriPageState extends State<HistoriPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: const Color(0xFF0B1C30),
-            ),
+            Icon(icon, size: 14, color: const Color(0xFF0B1C30)),
             const SizedBox(width: 4),
             Text(
               title,
@@ -1018,6 +1078,95 @@ class _HistoriPageState extends State<HistoriPage> {
   // ============================================================
 
   Widget _buildHistoryTable() {
+    if (_isLoading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x08000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Color(0xFF785600),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Memuat histori harga emas...',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: const Color(0xFF4F4535),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x08000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, size: 40, color: Color(0xFFBA1A1A)),
+            const SizedBox(height: 10),
+            Text(
+              'Gagal Memuat Data',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0B1C30),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Periksa koneksi ke server API.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: const Color(0xFF4F4535),
+              ),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: _loadHistory,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Coba Lagi'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF785600),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final data = filteredData;
 
     return Container(
@@ -1072,10 +1221,7 @@ class _HistoriPageState extends State<HistoriPage> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFFDCE9FF),
               borderRadius: BorderRadius.circular(5),
@@ -1104,10 +1250,7 @@ class _HistoriPageState extends State<HistoriPage> {
             _buildTableColumnHeader(),
             ...List.generate(
               data.length,
-              (index) => _buildHistoryRow(
-                data[index],
-                index,
-              ),
+              (index) => _buildHistoryRow(data[index], index),
             ),
           ],
         ),
@@ -1118,17 +1261,14 @@ class _HistoriPageState extends State<HistoriPage> {
   Widget _buildTableColumnHeader() {
     return Container(
       color: const Color(0xFFE5EEFF),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: [
           _tableHeaderCell('Tanggal', 145, alignLeft: true),
-          _tableHeaderCell('Open (IDR)', 95),
-          _tableHeaderCell('High (IDR)', 95),
-          _tableHeaderCell('Low (IDR)', 95),
-          _tableHeaderCell('Close (IDR)', 95),
+          _tableHeaderCell('Open (USD)', 95),
+          _tableHeaderCell('High (USD)', 95),
+          _tableHeaderCell('Low (USD)', 95),
+          _tableHeaderCell('Close (USD)', 95),
           _tableHeaderCell('Perubahan', 110),
         ],
       ),
@@ -1155,20 +1295,12 @@ class _HistoriPageState extends State<HistoriPage> {
     );
   }
 
-  Widget _buildHistoryRow(
-    Map<String, dynamic> item,
-    int index,
-  ) {
+  Widget _buildHistoryRow(Map<String, dynamic> item, int index) {
     final isUp = item['up'] as bool;
 
     return Container(
-      color: index.isOdd
-          ? const Color(0xFFF8F9FF)
-          : Colors.white,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
+      color: index.isOdd ? const Color(0xFFF8F9FF) : Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(
         children: [
           SizedBox(
@@ -1194,11 +1326,7 @@ class _HistoriPageState extends State<HistoriPage> {
           ),
           _tableValue(item['open'], 95),
           _tableValue(item['high'], 95, bold: true),
-          _tableValue(
-            item['low'],
-            95,
-            color: const Color(0xFF4F4535),
-          ),
+          _tableValue(item['low'], 95, color: const Color(0xFF4F4535)),
           _tableValue(item['close'], 95, bold: true),
           SizedBox(
             width: 110,
@@ -1209,9 +1337,7 @@ class _HistoriPageState extends State<HistoriPage> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Icon(
-                      isUp
-                          ? Icons.arrow_drop_up
-                          : Icons.arrow_drop_down,
+                      isUp ? Icons.arrow_drop_up : Icons.arrow_drop_down,
                       size: 15,
                       color: isUp
                           ? const Color(0xFF006947)
@@ -1317,6 +1443,12 @@ class _HistoriPageState extends State<HistoriPage> {
   // ============================================================
 
   Widget _buildPagination() {
+    final totalData = filteredData.length;
+    final totalPages = totalData == 0 ? 1 : (totalData / 10).ceil();
+
+    if (currentPage > totalPages) {
+      currentPage = totalPages;
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1334,16 +1466,13 @@ class _HistoriPageState extends State<HistoriPage> {
               ),
               const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: Text(
-                  '248 Catatan',
+                  '${filteredData.length} Catatan',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -1388,7 +1517,7 @@ class _HistoriPageState extends State<HistoriPage> {
                 ),
               ),
               Text(
-                '25',
+                '$totalPages',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -1414,7 +1543,7 @@ class _HistoriPageState extends State<HistoriPage> {
               const SizedBox(width: 4),
               _pageButton(
                 Icons.chevron_right,
-                enabled: currentPage < 25,
+                enabled: currentPage < totalPages,
                 onTap: () {
                   if (currentPage < 25) {
                     setState(() {
@@ -1447,9 +1576,7 @@ class _HistoriPageState extends State<HistoriPage> {
         child: Icon(
           icon,
           size: 18,
-          color: enabled
-              ? const Color(0xFF4F4535)
-              : const Color(0x664F4535),
+          color: enabled ? const Color(0xFF4F4535) : const Color(0x664F4535),
         ),
       ),
     );
@@ -1469,9 +1596,7 @@ class _HistoriPageState extends State<HistoriPage> {
         height: 32,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF785600)
-              : Colors.white,
+          color: selected ? const Color(0xFF785600) : Colors.white,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
@@ -1479,9 +1604,7 @@ class _HistoriPageState extends State<HistoriPage> {
           style: GoogleFonts.jetBrainsMono(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: selected
-                ? Colors.white
-                : const Color(0xFF0B1C30),
+            color: selected ? Colors.white : const Color(0xFF0B1C30),
           ),
         ),
       ),
@@ -1550,10 +1673,7 @@ class _HistoriPageState extends State<HistoriPage> {
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 9,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFEFF4FF),
               borderRadius: BorderRadius.circular(8),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/gold_price.dart';
+import '../services/api_service.dart';
+
 class HargaEmasPage extends StatefulWidget {
   const HargaEmasPage({super.key});
 
@@ -8,6 +11,83 @@ class HargaEmasPage extends StatefulWidget {
 }
 
 class _HargaEmasPageState extends State<HargaEmasPage> {
+    GoldPrice? lgdPrice;
+  GoldPrice? hsiPrice;
+  GoldPrice? sniPrice;
+
+  bool isLoadingPrices = false;
+  String? priceError;
+
+  Future<void> loadGoldPrices() async {
+    setState(() {
+      isLoadingPrices = true;
+      priceError = null;
+    });
+
+    try {
+      final prices = await ApiService.getGoldPrices();
+
+      GoldPrice? lgd;
+      GoldPrice? hsi;
+      GoldPrice? sni;
+
+      for (final item in prices) {
+        switch (item.commodity.toUpperCase()) {
+          case 'LGD':
+            if (lgd == null ||
+                (item.recordedAt != null &&
+                    lgd.recordedAt != null &&
+                    item.recordedAt!.isAfter(lgd.recordedAt!))) {
+              lgd = item;
+            }
+            break;
+
+          case 'HSI':
+            if (hsi == null ||
+                (item.recordedAt != null &&
+                    hsi.recordedAt != null &&
+                    item.recordedAt!.isAfter(hsi.recordedAt!))) {
+              hsi = item;
+            }
+            break;
+
+          case 'SNI':
+            if (sni == null ||
+                (item.recordedAt != null &&
+                    sni.recordedAt != null &&
+                    item.recordedAt!.isAfter(sni.recordedAt!))) {
+              sni = item;
+            }
+            break;
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _goldPrices = prices;
+        lgdPrice = lgd;
+        hsiPrice = hsi;
+        sniPrice = sni;
+        isLoadingPrices = false;
+        _selectedChartPoint = 0;
+        _currentPage = 1;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoadingPrices = false;
+        priceError = e.toString();
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadGoldPrices();
+  }
   // ============================================================
   // STATE
   // ============================================================
@@ -15,10 +95,10 @@ class _HargaEmasPageState extends State<HargaEmasPage> {
   int _selectedAsset = 0;
   int _selectedPeriod = 1;
   int _currentPage = 1;
-  int _selectedChartPoint = 6;
+  int _selectedChartPoint = 0;
 
-  DateTime _startDate = DateTime(2024, 5, 18);
-  DateTime _endDate = DateTime(2024, 5, 24);
+  DateTime _startDate = DateTime(2026, 9, 15);
+  DateTime _endDate = DateTime(2026, 9, 21);
 
   final List<String> _assets = [
     'LGD (Loco Gold)',
@@ -33,134 +113,160 @@ class _HargaEmasPageState extends State<HargaEmasPage> {
     'Kustom',
   ];
 
-  // ============================================================
-  // DATA CHART
-  // ============================================================
+  List<GoldPrice> _goldPrices = [];
 
-  final List<GoldChartPoint> _chartData = [
-    GoldChartPoint(
-      date: '16 Mei 2024',
-      shortDate: '16 Mei',
-      price: 2342.10,
-    ),
-    GoldChartPoint(
-      date: '17 Mei 2024',
-      shortDate: '17 Mei',
-      price: 2354.50,
-    ),
-    GoldChartPoint(
-      date: '20 Mei 2024',
-      shortDate: '20 Mei',
-      price: 2348.90,
-    ),
-    GoldChartPoint(
-      date: '21 Mei 2024',
-      shortDate: '21 Mei',
-      price: 2372.40,
-    ),
-    GoldChartPoint(
-      date: '22 Mei 2024',
-      shortDate: '22 Mei',
-      price: 2366.10,
-    ),
-    GoldChartPoint(
-      date: '23 Mei 2024',
-      shortDate: '23 Mei',
-      price: 2382.70,
-    ),
-    GoldChartPoint(
-      date: '24 Mei 2024',
-      shortDate: '24 Mei',
-      price: 2391.80,
-    ),
-  ];
+  List<GoldPrice> get _selectedPrices {
+    String commodity;
 
-  // ============================================================
-  // DATA OHLC
-  // ============================================================
+    switch (_selectedAsset) {
+      case 1:
+        commodity = 'HSI';
+        break;
+      case 2:
+        commodity = 'SNI';
+        break;
+      default:
+        commodity = 'LGD';
+    }
 
-  final List<OhlcData> _ohlcData = [
-    OhlcData(
-      date: '24/05/2024',
-      open: 2380.50,
-      high: 2395.10,
-      low: 2374.20,
-      close: 2391.80,
-      change: 0.47,
-    ),
-    OhlcData(
-      date: '23/05/2024',
-      open: 2368.20,
-      high: 2385.00,
-      low: 2362.40,
-      close: 2382.70,
-      change: 0.70,
-    ),
-    OhlcData(
-      date: '22/05/2024',
-      open: 2371.90,
-      high: 2376.50,
-      low: 2358.10,
-      close: 2366.10,
-      change: -0.27,
-    ),
-    OhlcData(
-      date: '21/05/2024',
-      open: 2350.00,
-      high: 2375.20,
-      low: 2347.80,
-      close: 2372.40,
-      change: 1.00,
-    ),
-    OhlcData(
-      date: '20/05/2024',
-      open: 2356.10,
-      high: 2361.00,
-      low: 2341.30,
-      close: 2348.90,
-      change: -0.24,
-    ),
-    OhlcData(
-      date: '17/05/2024',
-      open: 2340.80,
-      high: 2359.70,
-      low: 2335.20,
-      close: 2354.50,
-      change: 0.53,
-    ),
-    OhlcData(
-      date: '16/05/2024',
-      open: 2332.10,
-      high: 2346.00,
-      low: 2328.00,
-      close: 2342.10,
-      change: 0.43,
-    ),
-    OhlcData(
-      date: '15/05/2024',
-      open: 2345.00,
-      high: 2349.80,
-      low: 2326.50,
-      close: 2332.00,
-      change: -0.55,
-    ),
-    OhlcData(
-      date: '14/05/2024',
-      open: 2336.20,
-      high: 2351.40,
-      low: 2331.00,
-      close: 2345.00,
-      change: 0.38,
-    ),
-    OhlcData(
-      date: '13/05/2024',
-      open: 2352.00,
-      high: 2355.00,
-      low: 2330.10,
-      close: 2336.20,
-      change: -0.67,
-    ),
-  ];
+    final data = _goldPrices
+        .where(
+          (item) =>
+              item.commodity.toUpperCase() == commodity &&
+              item.recordedAt != null,
+        )
+        .toList();
+
+    data.sort(
+      (a, b) => a.recordedAt!.compareTo(b.recordedAt!),
+    );
+
+    return data;
+  }
+
+  List<GoldPrice> get _filteredPrices {
+    final all = _selectedPrices;
+
+    if (all.isEmpty) {
+      return [];
+    }
+
+    switch (_selectedPeriod) {
+      case 0:
+        final latestDate = all.last.recordedAt!.toLocal();
+
+        return all.where((item) {
+          final date = item.recordedAt!.toLocal();
+
+          return date.year == latestDate.year &&
+              date.month == latestDate.month &&
+              date.day == latestDate.day;
+        }).toList();
+
+      case 1:
+        final start = all.length > 7 ? all.length - 7 : 0;
+        return all.sublist(start);
+
+      case 2:
+        final start = all.length > 30 ? all.length - 30 : 0;
+        return all.sublist(start);
+
+      case 3:
+        final start = DateTime(
+          _startDate.year,
+          _startDate.month,
+          _startDate.day,
+        );
+
+        final end = DateTime(
+          _endDate.year,
+          _endDate.month,
+          _endDate.day,
+          23,
+          59,
+          59,
+        );
+
+        return all.where((item) {
+          final date = item.recordedAt!.toLocal();
+
+          return !date.isBefore(start) && !date.isAfter(end);
+        }).toList();
+
+      default:
+        return all;
+    }
+  }
+
+  List<GoldChartPoint> get _chartData {
+    return _filteredPrices.map((item) {
+      final date = item.recordedAt!.toLocal();
+
+      return GoldChartPoint(
+        date:
+            '${date.day.toString().padLeft(2, '0')}/'
+            '${date.month.toString().padLeft(2, '0')}/'
+            '${date.year}',
+        shortDate:
+            '${date.day.toString().padLeft(2, '0')}/'
+            '${date.month.toString().padLeft(2, '0')}',
+        price: item.close ?? item.price,
+      );
+    }).toList();
+  }
+
+  List<OhlcData> get _ohlcData {
+    final data = List<GoldPrice>.from(_filteredPrices);
+
+    data.sort(
+      (a, b) => b.recordedAt!.compareTo(a.recordedAt!),
+    );
+
+    return data.map((item) {
+      final date = item.recordedAt!.toLocal();
+
+      double change = 0;
+
+      if (item.open != null &&
+          item.open != 0 &&
+          item.close != null) {
+        change = ((item.close! - item.open!) / item.open!) * 100;
+      }
+
+      return OhlcData(
+        date:
+            '${date.day.toString().padLeft(2, '0')}/'
+            '${date.month.toString().padLeft(2, '0')}/'
+            '${date.year}',
+        open: item.open ?? item.price,
+        high: item.high ?? item.price,
+        low: item.low ?? item.price,
+        close: item.close ?? item.price,
+        change: change,
+      );
+    }).toList();
+  }
+
+  GoldPrice? get _selectedPrice {
+    switch (_selectedAsset) {
+      case 1:
+        return hsiPrice;
+      case 2:
+        return sniPrice;
+      default:
+        return lgdPrice;
+    }
+  }
+
+  String _selectedPriceText() {
+    final item = _selectedPrice;
+
+    if (item == null) {
+      return '-';
+    }
+
+    return _formatPrice(item.close ?? item.price);
+  }
 
   // ============================================================
   // FORMATTER
@@ -295,124 +401,110 @@ class _HargaEmasPageState extends State<HargaEmasPage> {
   // HEADER
   // ============================================================
 
-Widget _buildHeader() {
-  return Container(
-    padding: const EdgeInsets.symmetric(
-      horizontal: 16,
-      vertical: 12,
-    ),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border(
-        bottom: BorderSide(
-          color: Colors.grey.shade200,
-        ),
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-    ),
-    child: Row(
-      children: [
-        // BACK TO DASHBOARD
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 19,
-          ),
-          color: const Color(0xFF111827),
-          tooltip: 'Kembali ke Dashboard',
-        ),
-
-        const SizedBox(width: 2),
-
-        // LOGO
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
+      child: Row(
+        children: [
+          // BACK TO DASHBOARD
+          IconButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
             color: const Color(0xFF111827),
-            borderRadius: BorderRadius.circular(10),
+            tooltip: 'Kembali ke Dashboard',
           ),
-          child: const Icon(
-            Icons.show_chart,
-            color: Colors.white,
-            size: 22,
+
+          const SizedBox(width: 2),
+
+          // LOGO
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF111827),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.show_chart, color: Colors.white, size: 22),
           ),
-        ),
 
-        const SizedBox(width: 10),
+          const SizedBox(width: 10),
 
-        // TITLE
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'EQUITY PULSE',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: Color(0xFF111827),
+          // TITLE
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'EQUITY PULSE',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: Color(0xFF111827),
+                  ),
                 ),
-              ),
-              SizedBox(height: 2),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 7,
-                    height: 7,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0xFF16A34A),
-                        shape: BoxShape.circle,
+                SizedBox(height: 2),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 7,
+                      height: 7,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0xFF16A34A),
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    'MARKET OPEN',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF16A34A),
-                      letterSpacing: 0.5,
+                    SizedBox(width: 5),
+                    Text(
+                      'MARKET OPEN',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF16A34A),
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
 
-        // NOTIFICATION
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: Color(0xFF374151),
+          // NOTIFICATION
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Color(0xFF374151),
+            ),
           ),
-        ),
 
-        // PROFILE
-        Container(
-          width: 36,
-          height: 36,
-          decoration: const BoxDecoration(
-            color: Color(0xFFE5E7EB),
-            shape: BoxShape.circle,
+          // PROFILE
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE5E7EB),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_outline,
+              color: Color(0xFF374151),
+              size: 20,
+            ),
           ),
-          child: const Icon(
-            Icons.person_outline,
-            color: Color(0xFF374151),
-            size: 20,
-          ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   // ============================================================
   // PAGE TITLE
@@ -437,23 +529,15 @@ Widget _buildHeader() {
             const Expanded(
               child: Text(
                 'Data Pasar & Kuotasi OHLC Terverifikasi',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF6B7280),
-                ),
+                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 9,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(7),
-                border: Border.all(
-                  color: const Color(0xFFBBF7D0),
-                ),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -494,53 +578,49 @@ Widget _buildHeader() {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        children: List.generate(
-          _assets.length,
-          (index) {
-            final isSelected = _selectedAsset == index;
+        children: List.generate(_assets.length, (index) {
+          final isSelected = _selectedAsset == index;
 
-            return Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedAsset = index;
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedAsset = index;
+                  _selectedChartPoint = 0;
+                  _currentPage = 1;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _assets[index],
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                     color: isSelected
-                        ? Colors.white
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _assets[index],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          isSelected ? FontWeight.w800 : FontWeight.w600,
-                      color: isSelected
-                          ? const Color(0xFF111827)
-                          : const Color(0xFF6B7280),
-                    ),
+                        ? const Color(0xFF111827)
+                        : const Color(0xFF6B7280),
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -550,6 +630,23 @@ Widget _buildHeader() {
   // ============================================================
 
   Widget _buildSettlementCard() {
+    final item = _selectedPrice;
+
+    final close = item?.close ?? item?.price ?? 0;
+    final open = item?.open;
+    final low = item?.low ?? close;
+    final high = item?.high ?? close;
+
+    final change = open == null ? 0 : close - open;
+    final changePercent =
+        open == null || open == 0 ? 0 : (change / open) * 100;
+
+    final range = high - low;
+    final rangeRatio =
+        range <= 0 ? 0.5 : ((close - low) / range).clamp(0.0, 1.0);
+
+    final positive = change >= 0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -579,7 +676,7 @@ Widget _buildHeader() {
               ),
               const SizedBox(width: 8),
               const Text(
-                'Live Settlement Ref',
+                'Harga Penutupan',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -611,35 +708,46 @@ Widget _buildHeader() {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text(
-                '2,391.80',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                margin: const EdgeInsets.only(bottom: 5),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF14532D),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  '+11.30 (+0.47%)',
-                  style: TextStyle(
-                    color: Color(0xFF86EFAC),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  _selectedPriceText(),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1,
                   ),
                 ),
               ),
+              if (item != null) ...[
+                const SizedBox(width: 10),
+                Container(
+                  margin: const EdgeInsets.only(bottom: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: positive
+                        ? const Color(0xFF14532D)
+                        : const Color(0xFF7F1D1D),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${positive ? '+' : ''}'
+                    '${_formatPrice(change.toDouble())} '
+                    '(${positive ? '+' : ''}${changePercent.toStringAsFixed(2)}%)',
+                    style: TextStyle(
+                      color: positive
+                          ? const Color(0xFF86EFAC)
+                          : const Color(0xFFFCA5A5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 18),
@@ -662,9 +770,9 @@ Widget _buildHeader() {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text(
-                  '2,374.20',
-                  style: TextStyle(
+                Text(
+                 '${_formatPrice(low)} (Low)',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -680,7 +788,7 @@ Widget _buildHeader() {
                     ),
                     child: FractionallySizedBox(
                       alignment: Alignment.centerLeft,
-                      widthFactor: 0.78,
+                      widthFactor: rangeRatio,
                       child: Container(
                         decoration: BoxDecoration(
                           color: const Color(0xFF22C55E),
@@ -690,9 +798,9 @@ Widget _buildHeader() {
                     ),
                   ),
                 ),
-                const Text(
-                  '2,395.10',
-                  style: TextStyle(
+                Text(
+                  '${_formatPrice(high)} (High)',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -701,6 +809,24 @@ Widget _buildHeader() {
               ],
             ),
           ),
+          if (priceError != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              priceError!,
+              style: const TextStyle(
+                color: Color(0xFFFCA5A5),
+                fontSize: 10,
+              ),
+            ),
+          ],
+          if (isLoadingPrices) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(
+              minHeight: 2,
+              color: Color(0xFF22C55E),
+              backgroundColor: Color(0xFF374151),
+            ),
+          ],
         ],
       ),
     );
@@ -717,9 +843,7 @@ Widget _buildHeader() {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,21 +866,14 @@ Widget _buildHeader() {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Row(
                   children: [
-                    Icon(
-                      Icons.circle,
-                      size: 7,
-                      color: Color(0xFF16A34A),
-                    ),
+                    Icon(Icons.circle, size: 7, color: Color(0xFF16A34A)),
                     SizedBox(width: 5),
                     Text(
                       'Real-time Feed',
@@ -777,45 +894,44 @@ Widget _buildHeader() {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: List.generate(
-                _periods.length,
-                (index) {
-                  final selected = _selectedPeriod == index;
+              children: List.generate(_periods.length, (index) {
+                final selected = _selectedPeriod == index;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 7),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedPeriod = index;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
+                return Padding(
+                  padding: const EdgeInsets.only(right: 7),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedPeriod = index;
+                        _selectedChartPoint = 0;
+                        _currentPage = 1;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 13,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? const Color(0xFF111827)
+                            : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _periods[index],
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                           color: selected
-                              ? const Color(0xFF111827)
-                              : const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _periods[index],
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: selected
-                                ? Colors.white
-                                : const Color(0xFF6B7280),
-                          ),
+                              ? Colors.white
+                              : const Color(0xFF6B7280),
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              }),
             ),
           ),
 
@@ -850,18 +966,13 @@ Widget _buildHeader() {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _applyFilter,
-                  icon: const Icon(
-                    Icons.filter_alt_outlined,
-                    size: 17,
-                  ),
+                  icon: const Icon(Icons.filter_alt_outlined, size: 17),
                   label: const Text('Terapkan Filter'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF111827),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 13,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -875,16 +986,11 @@ Widget _buildHeader() {
               const SizedBox(width: 9),
               OutlinedButton.icon(
                 onPressed: _exportData,
-                icon: const Icon(
-                  Icons.download_outlined,
-                  size: 17,
-                ),
+                icon: const Icon(Icons.download_outlined, size: 17),
                 label: const Text('Export'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF374151),
-                  side: const BorderSide(
-                    color: Color(0xFFD1D5DB),
-                  ),
+                  side: const BorderSide(color: Color(0xFFD1D5DB)),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 13,
@@ -913,16 +1019,11 @@ Widget _buildHeader() {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 11,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
         decoration: BoxDecoration(
           color: const Color(0xFFF9FAFB),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
-          ),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
         child: Row(
           children: [
@@ -967,7 +1068,37 @@ Widget _buildHeader() {
   // ============================================================
 
   Widget _buildChartCard() {
-    final selectedPoint = _chartData[_selectedChartPoint];
+    final data = _chartData;
+
+    if (data.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 30),
+            child: Text(
+              'Data historis belum tersedia',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_selectedChartPoint >= data.length) {
+      _selectedChartPoint = data.length - 1;
+    }
+
+    final selectedPoint = data[_selectedChartPoint];
 
     return Container(
       width: double.infinity,
@@ -975,9 +1106,7 @@ Widget _buildHeader() {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -999,7 +1128,7 @@ Widget _buildHeader() {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Pergerakan historis 7 hari kerja terakhir',
+                      'Pergerakan historis dari data News Maker',
                       style: TextStyle(
                         fontSize: 10,
                         color: Color(0xFF9CA3AF),
@@ -1020,13 +1149,13 @@ Widget _buildHeader() {
                 child: const Row(
                   children: [
                     Icon(
-                      Icons.trending_up,
+                      Icons.show_chart,
                       size: 14,
                       color: Color(0xFF16A34A),
                     ),
                     SizedBox(width: 4),
                     Text(
-                      'Bullish',
+                      'Live Data',
                       style: TextStyle(
                         color: Color(0xFF15803D),
                         fontSize: 10,
@@ -1039,8 +1168,6 @@ Widget _buildHeader() {
             ],
           ),
           const SizedBox(height: 14),
-
-          // TOOLTIP
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 10,
@@ -1049,9 +1176,7 @@ Widget _buildHeader() {
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: const Color(0xFFE5E7EB),
-              ),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1075,37 +1200,32 @@ Widget _buildHeader() {
               ],
             ),
           ),
-
           const SizedBox(height: 10),
-
           SizedBox(
             height: 235,
             width: double.infinity,
             child: GestureDetector(
               onTapDown: (details) {
-                final box =
-                    context.findRenderObject() as RenderBox?;
-                if (box == null) return;
+                if (data.length == 1) return;
 
-                final localPosition =
-                    details.localPosition;
+                final localPosition = details.localPosition;
+                final width = MediaQuery.of(context).size.width - 74;
 
-                final width =
-                    MediaQuery.of(context).size.width - 74;
-
-                final chartLeft = 40.0;
+                const chartLeft = 40.0;
                 final chartRight = width - 10;
-                final usableWidth =
-                    chartRight - chartLeft;
+                final usableWidth = chartRight - chartLeft;
+
+                if (usableWidth <= 0) return;
 
                 final ratio = ((localPosition.dx - chartLeft) /
                         usableWidth)
                     .clamp(0.0, 1.0);
 
                 final index =
-                    (ratio * (_chartData.length - 1))
-                        .round()
-                        .clamp(0, _chartData.length - 1);
+                    (ratio * (data.length - 1)).round().clamp(
+                  0,
+                  data.length - 1,
+                );
 
                 setState(() {
                   _selectedChartPoint = index;
@@ -1113,7 +1233,7 @@ Widget _buildHeader() {
               },
               child: CustomPaint(
                 painter: GoldChartPainter(
-                  data: _chartData,
+                  data: data,
                   selectedIndex: _selectedChartPoint,
                 ),
               ),
@@ -1134,19 +1254,12 @@ Widget _buildHeader() {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              17,
-              17,
-              17,
-              14,
-            ),
+            padding: const EdgeInsets.fromLTRB(17, 17, 17, 14),
             child: Row(
               children: [
                 const Expanded(
@@ -1181,22 +1294,19 @@ Widget _buildHeader() {
                     color: const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
-                    '10 Entri Terakhir',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
+                  child: Text(
+          '${_ohlcData.length} Entri',
+  style: const TextStyle(
+    fontSize: 9,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFF6B7280),
+  ),
+),
                 ),
               ],
             ),
           ),
-          const Divider(
-            height: 1,
-            color: Color(0xFFE5E7EB),
-          ),
+          const Divider(height: 1, color: Color(0xFFE5E7EB)),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
@@ -1221,7 +1331,7 @@ Widget _buildHeader() {
                 DataColumn(label: Text('Close')),
                 DataColumn(label: Text('Arah')),
               ],
-              rows: _ohlcData.map((item) {
+              rows: _ohlcData.take(10).map((item) {
                 final positive = item.change >= 0;
 
                 return DataRow(
@@ -1229,26 +1339,16 @@ Widget _buildHeader() {
                     DataCell(
                       Text(
                         item.date,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    DataCell(
-                      Text(_formatPrice(item.open)),
-                    ),
-                    DataCell(
-                      Text(_formatPrice(item.high)),
-                    ),
-                    DataCell(
-                      Text(_formatPrice(item.low)),
-                    ),
+                    DataCell(Text(_formatPrice(item.open))),
+                    DataCell(Text(_formatPrice(item.high))),
+                    DataCell(Text(_formatPrice(item.low))),
                     DataCell(
                       Text(
                         _formatPrice(item.close),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                     DataCell(
@@ -1290,15 +1390,34 @@ Widget _buildHeader() {
   // ============================================================
 
   Widget _buildPagination() {
+    final totalData = _filteredPrices.length;
+    final totalPages = totalData == 0 ? 1 : (totalData / 10).ceil();
+
+    if (_currentPage > totalPages) {
+      _currentPage = totalPages;
+    }
+
+    final start = totalData == 0 ? 0 : ((_currentPage - 1) * 10) + 1;
+    final end = totalData == 0
+        ? 0
+        : (_currentPage * 10 > totalData
+            ? totalData
+            : _currentPage * 10);
+
+    final visiblePages = <int>[];
+    final maxVisible = totalPages < 5 ? totalPages : 5;
+
+    for (int i = 1; i <= maxVisible; i++) {
+      visiblePages.add(i);
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         children: [
@@ -1331,8 +1450,7 @@ Widget _buildHeader() {
               ),
               const Spacer(),
               Text(
-                'Menampilkan ${((_currentPage - 1) * 10) + 1}-'
-                '${_currentPage * 10} dari 120 data',
+                'Menampilkan $start-$end dari $totalData data',
                 style: const TextStyle(
                   fontSize: 10,
                   color: Color(0xFF6B7280),
@@ -1348,11 +1466,9 @@ Widget _buildHeader() {
                 icon: Icons.first_page,
                 enabled: _currentPage > 1,
                 onTap: () {
-                  if (_currentPage > 1) {
-                    setState(() {
-                      _currentPage = 1;
-                    });
-                  }
+                  setState(() {
+                    _currentPage = 1;
+                  });
                 },
               ),
               const SizedBox(width: 4),
@@ -1360,106 +1476,96 @@ Widget _buildHeader() {
                 icon: Icons.chevron_left,
                 enabled: _currentPage > 1,
                 onTap: () {
-                  if (_currentPage > 1) {
-                    setState(() {
-                      _currentPage--;
-                    });
-                  }
+                  setState(() {
+                    _currentPage--;
+                  });
                 },
               ),
               const SizedBox(width: 6),
-              ...List.generate(
-                5,
-                (index) {
-                  final page = index + 1;
-
-                  return Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 2),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _currentPage = page;
-                        });
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
+              ...visiblePages.map((page) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _currentPage = page;
+                      });
+                    },
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _currentPage == page
+                            ? const Color(0xFF111827)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        '$page',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                           color: _currentPage == page
-                              ? const Color(0xFF111827)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(7),
-                        ),
-                        child: Text(
-                          '$page',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: _currentPage == page
-                                ? Colors.white
-                                : const Color(0xFF6B7280),
-                          ),
+                              ? Colors.white
+                              : const Color(0xFF6B7280),
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(width: 3),
-              const Text(
-                '...',
-                style: TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 11,
+                  ),
+                );
+              }),
+              if (totalPages > 5) ...[
+                const SizedBox(width: 3),
+                const Text(
+                  '...',
+                  style: TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 11,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 3),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _currentPage = 12;
-                  });
-                },
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  alignment: Alignment.center,
-                  child: Text(
-                    '12',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: _currentPage == 12
-                          ? const Color(0xFF111827)
-                          : const Color(0xFF6B7280),
+                const SizedBox(width: 3),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _currentPage = totalPages;
+                    });
+                  },
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$totalPages',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _currentPage == totalPages
+                            ? const Color(0xFF111827)
+                            : const Color(0xFF6B7280),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(width: 6),
               _paginationButton(
                 icon: Icons.chevron_right,
-                enabled: _currentPage < 12,
+                enabled: _currentPage < totalPages,
                 onTap: () {
-                  if (_currentPage < 12) {
-                    setState(() {
-                      _currentPage++;
-                    });
-                  }
+                  setState(() {
+                    _currentPage++;
+                  });
                 },
               ),
               const SizedBox(width: 4),
               _paginationButton(
                 icon: Icons.last_page,
-                enabled: _currentPage < 12,
+                enabled: _currentPage < totalPages,
                 onTap: () {
-                  if (_currentPage < 12) {
-                    setState(() {
-                      _currentPage = 12;
-                    });
-                  }
+                  setState(() {
+                    _currentPage = totalPages;
+                  });
                 },
               ),
             ],
@@ -1481,17 +1587,13 @@ Widget _buildHeader() {
         height: 30,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: enabled
-              ? const Color(0xFFF3F4F6)
-              : const Color(0xFFF9FAFB),
+          color: enabled ? const Color(0xFFF3F4F6) : const Color(0xFFF9FAFB),
           borderRadius: BorderRadius.circular(7),
         ),
         child: Icon(
           icon,
           size: 17,
-          color: enabled
-              ? const Color(0xFF374151)
-              : const Color(0xFFD1D5DB),
+          color: enabled ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
         ),
       ),
     );
@@ -1544,11 +1646,7 @@ Widget _buildHeader() {
       height: 72,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-          ),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -1562,49 +1660,44 @@ Widget _buildHeader() {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: List.generate(
-              items.length,
-              (index) {
-                final active = index == 2;
+            children: List.generate(items.length, (index) {
+              final active = index == 2;
 
-                return SizedBox(
-                  width: 82,
-                  child: InkWell(
-                    onTap: () {
-                      // Navigasi akan dihubungkan setelah
-                      // seluruh halaman Flutter selesai.
-                    },
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          active
-                              ? items[index].activeIcon
-                              : items[index].icon,
-                          size: 21,
+              return SizedBox(
+                width: 82,
+                child: InkWell(
+                  onTap: () {
+                    // Navigasi akan dihubungkan setelah
+                    // seluruh halaman Flutter selesai.
+                  },
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        active ? items[index].activeIcon : items[index].icon,
+                        size: 21,
+                        color: active
+                            ? const Color(0xFF111827)
+                            : const Color(0xFF9CA3AF),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        items[index].label,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: active
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                           color: active
                               ? const Color(0xFF111827)
                               : const Color(0xFF9CA3AF),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          items[index].label,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: active
-                                ? FontWeight.w800
-                                : FontWeight.w600,
-                            color: active
-                                ? const Color(0xFF111827)
-                                : const Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            }),
           ),
         ),
       ),
@@ -1674,10 +1767,7 @@ class GoldChartPainter extends CustomPainter {
   final List<GoldChartPoint> data;
   final int selectedIndex;
 
-  GoldChartPainter({
-    required this.data,
-    required this.selectedIndex,
-  });
+  GoldChartPainter({required this.data, required this.selectedIndex});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1688,19 +1778,15 @@ class GoldChartPainter extends CustomPainter {
     const topPadding = 18.0;
     const bottomPadding = 32.0;
 
-    final chartWidth =
-        size.width - leftPadding - rightPadding;
+    final chartWidth = size.width - leftPadding - rightPadding;
 
-    final chartHeight =
-        size.height - topPadding - bottomPadding;
+    final chartHeight = size.height - topPadding - bottomPadding;
 
     final prices = data.map((e) => e.price).toList();
 
-    final minPrice =
-        prices.reduce((a, b) => a < b ? a : b) - 8;
+    final minPrice = prices.reduce((a, b) => a < b ? a : b) - 8;
 
-    final maxPrice =
-        prices.reduce((a, b) => a > b ? a : b) + 8;
+    final maxPrice = prices.reduce((a, b) => a > b ? a : b) + 8;
 
     // ------------------------------------------------------------
     // GRID
@@ -1713,8 +1799,7 @@ class GoldChartPainter extends CustomPainter {
     const gridCount = 4;
 
     for (int i = 0; i <= gridCount; i++) {
-      final y = topPadding +
-          (chartHeight / gridCount) * i;
+      final y = topPadding + (chartHeight / gridCount) * i;
 
       canvas.drawLine(
         Offset(leftPadding, y),
@@ -1722,30 +1807,19 @@ class GoldChartPainter extends CustomPainter {
         gridPaint,
       );
 
-      final value =
-          maxPrice -
-          ((maxPrice - minPrice) / gridCount) * i;
+      final value = maxPrice - ((maxPrice - minPrice) / gridCount) * i;
 
       final textPainter = TextPainter(
         text: TextSpan(
           text: value.toStringAsFixed(0),
-          style: const TextStyle(
-            fontSize: 9,
-            color: Color(0xFF9CA3AF),
-          ),
+          style: const TextStyle(fontSize: 9, color: Color(0xFF9CA3AF)),
         ),
         textDirection: TextDirection.ltr,
       );
 
       textPainter.layout();
 
-      textPainter.paint(
-        canvas,
-        Offset(
-          0,
-          y - textPainter.height / 2,
-        ),
-      );
+      textPainter.paint(canvas, Offset(0, y - textPainter.height / 2));
     }
 
     // ------------------------------------------------------------
@@ -1755,17 +1829,13 @@ class GoldChartPainter extends CustomPainter {
     final points = <Offset>[];
 
     for (int i = 0; i < data.length; i++) {
-      final x = leftPadding +
-          (chartWidth / (data.length - 1)) * i;
+      final x = data.length == 1
+          ? leftPadding + chartWidth / 2
+          : leftPadding + (chartWidth / (data.length - 1)) * i;
 
-      final normalized =
-          (data[i].price - minPrice) /
-          (maxPrice - minPrice);
+      final normalized = (data[i].price - minPrice) / (maxPrice - minPrice);
 
-      final y =
-          topPadding +
-          chartHeight -
-          normalized * chartHeight;
+      final y = topPadding + chartHeight - normalized * chartHeight;
 
       points.add(Offset(x, y));
     }
@@ -1776,19 +1846,13 @@ class GoldChartPainter extends CustomPainter {
 
     final areaPath = Path();
 
-    areaPath.moveTo(
-      points.first.dx,
-      size.height - bottomPadding,
-    );
+    areaPath.moveTo(points.first.dx, size.height - bottomPadding);
 
     for (final point in points) {
       areaPath.lineTo(point.dx, point.dy);
     }
 
-    areaPath.lineTo(
-      points.last.dx,
-      size.height - bottomPadding,
-    );
+    areaPath.lineTo(points.last.dx, size.height - bottomPadding);
 
     areaPath.close();
 
@@ -1796,18 +1860,8 @@ class GoldChartPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          Color(0x3322C55E),
-          Color(0x0022C55E),
-        ],
-      ).createShader(
-        Rect.fromLTWH(
-          0,
-          0,
-          size.width,
-          size.height,
-        ),
-      );
+        colors: [Color(0x3322C55E), Color(0x0022C55E)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(areaPath, areaPaint);
 
@@ -1817,16 +1871,10 @@ class GoldChartPainter extends CustomPainter {
 
     final linePath = Path();
 
-    linePath.moveTo(
-      points.first.dx,
-      points.first.dy,
-    );
+    linePath.moveTo(points.first.dx, points.first.dy);
 
     for (int i = 1; i < points.length; i++) {
-      linePath.lineTo(
-        points[i].dx,
-        points[i].dy,
-      );
+      linePath.lineTo(points[i].dx, points[i].dy);
     }
 
     final linePaint = Paint()
@@ -1850,59 +1898,41 @@ class GoldChartPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: data[i].shortDate,
-          style: const TextStyle(
-            fontSize: 9,
-            color: Color(0xFF9CA3AF),
-          ),
+          style: const TextStyle(fontSize: 9, color: Color(0xFF9CA3AF)),
         ),
         textDirection: TextDirection.ltr,
       );
 
       textPainter.layout();
 
-      double x =
-          points[i].dx - textPainter.width / 2;
+      double x = points[i].dx - textPainter.width / 2;
 
       if (x < leftPadding) {
         x = leftPadding;
       }
 
-      if (x + textPainter.width >
-          size.width - rightPadding) {
-        x = size.width -
-            rightPadding -
-            textPainter.width;
+      if (x + textPainter.width > size.width - rightPadding) {
+        x = size.width - rightPadding - textPainter.width;
       }
 
-      textPainter.paint(
-        canvas,
-        Offset(
-          x,
-          size.height - bottomPadding + 10,
-        ),
-      );
+      textPainter.paint(canvas, Offset(x, size.height - bottomPadding + 10));
     }
 
     // ------------------------------------------------------------
     // SELECTED POINT
     // ------------------------------------------------------------
 
-    final selected =
-        points[selectedIndex.clamp(0, points.length - 1)];
+    final safeSelectedIndex =
+        selectedIndex.clamp(0, points.length - 1);
+    final selected = points[safeSelectedIndex];
 
     final verticalPaint = Paint()
       ..color = const Color(0xFFCBD5E1)
       ..strokeWidth = 1;
 
     canvas.drawLine(
-      Offset(
-        selected.dx,
-        topPadding,
-      ),
-      Offset(
-        selected.dx,
-        size.height - bottomPadding,
-      ),
+      Offset(selected.dx, topPadding),
+      Offset(selected.dx, size.height - bottomPadding),
       verticalPaint,
     );
 
@@ -1914,17 +1944,9 @@ class GoldChartPainter extends CustomPainter {
       ..color = const Color(0xFF16A34A)
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(
-      selected,
-      6,
-      outerCircle,
-    );
+    canvas.drawCircle(selected, 6, outerCircle);
 
-    canvas.drawCircle(
-      selected,
-      4,
-      selectedCircle,
-    );
+    canvas.drawCircle(selected, 4, selectedCircle);
   }
 
   @override

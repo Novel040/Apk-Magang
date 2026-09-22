@@ -55,53 +55,47 @@ class _LoginPageState extends State<LoginPage> {
       statusError = error;
     });
   }
-Future<void> handleLogin() async {
-  final email = emailController.text.trim();
-  final password = passwordController.text.trim();
 
-  if (email.isEmpty || password.isEmpty) {
+  Future<void> handleLogin() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      showStatus(
+        'Harap masukkan identitas akun dan kata sandi operasional.',
+        icon: Icons.warning_amber_rounded,
+        error: true,
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      statusMessage = null;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
+
     showStatus(
-      'Harap masukkan identitas akun dan kata sandi operasional.',
-      icon: Icons.warning_amber_rounded,
-      error: true,
+      'Sesi terautentikasi. Mengalihkan ke Dashboard Analis...',
+      icon: Icons.check_circle_outline,
     );
-    return;
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const DashboardPage()),
+    );
   }
-
-  setState(() {
-    isLoading = true;
-    statusMessage = null;
-  });
-
-  await Future.delayed(
-    const Duration(milliseconds: 1200),
-  );
-
-  if (!mounted) return;
-
-  setState(() {
-    isLoading = false;
-  });
-
-  showStatus(
-    'Sesi terautentikasi. Mengalihkan ke Dashboard Analis...',
-    icon: Icons.check_circle_outline,
-  );
-
-  await Future.delayed(
-    const Duration(milliseconds: 500),
-  );
-
-  if (!mounted) return;
-
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const DashboardPage(),
-    ),
-  );
-}
- 
 
   void triggerForgotFeedback() {
     showStatus(
@@ -148,16 +142,8 @@ Future<void> handleLogin() async {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: mono(
-        size: 13,
-        weight: FontWeight.w400,
-        color: secondary,
-      ),
-      prefixIcon: Icon(
-        icon,
-        color: secondary,
-        size: 20,
-      ),
+      hintStyle: mono(size: 13, weight: FontWeight.w400, color: secondary),
+      prefixIcon: Icon(icon, color: secondary, size: 20),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: surfaceContainerLow,
@@ -171,15 +157,9 @@ Future<void> handleLogin() async {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: primary,
-          width: 1.2,
-        ),
+        borderSide: const BorderSide(color: primary, width: 1.2),
       ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
@@ -190,14 +170,9 @@ Future<void> handleLogin() async {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 520,
-              ),
+              constraints: const BoxConstraints(maxWidth: 520),
               child: Column(
                 children: [
                   _buildBranding(),
@@ -234,11 +209,7 @@ Future<void> handleLogin() async {
                 borderRadius: BorderRadius.circular(8),
                 color: surfaceContainer,
               ),
-              child: const Icon(
-                Icons.trending_up,
-                color: primary,
-                size: 28,
-              ),
+              child: const Icon(Icons.trending_up, color: primary, size: 28),
             ),
             const SizedBox(width: 8),
             Column(
@@ -246,17 +217,12 @@ Future<void> handleLogin() async {
               children: [
                 RichText(
                   text: TextSpan(
-                    style: jakarta(
-                      size: 20,
-                      weight: FontWeight.w700,
-                    ),
+                    style: jakarta(size: 20, weight: FontWeight.w700),
                     children: const [
                       TextSpan(text: 'EQUITY '),
                       TextSpan(
                         text: 'PULSE',
-                        style: TextStyle(
-                          color: primary,
-                        ),
+                        style: TextStyle(color: primary),
                       ),
                     ],
                   ),
@@ -278,10 +244,7 @@ Future<void> handleLogin() async {
 
         // Internal Operations Terminal
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 5,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
             color: surfaceContainer,
             borderRadius: BorderRadius.circular(20),
@@ -315,10 +278,7 @@ Future<void> handleLogin() async {
         Text(
           'FUTURES MARKET INTELLIGENCE',
           textAlign: TextAlign.center,
-          style: jakarta(
-            size: 13,
-            color: secondary,
-          ),
+          style: jakarta(size: 13, color: secondary),
         ),
       ],
     );
@@ -341,11 +301,7 @@ Future<void> handleLogin() async {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.monetization_on_outlined,
-            color: primary,
-            size: 20,
-          ),
+          const Icon(Icons.monetization_on_outlined, color: primary, size: 20),
           const SizedBox(width: 6),
           Expanded(
             child: Column(
@@ -361,10 +317,7 @@ Future<void> handleLogin() async {
                 ),
                 RichText(
                   text: TextSpan(
-                    style: mono(
-                      size: 13,
-                      weight: FontWeight.w600,
-                    ),
+                    style: mono(size: 13, weight: FontWeight.w600),
                     children: const [
                       TextSpan(text: '\$2,864.40  '),
                       TextSpan(
@@ -380,19 +333,11 @@ Future<void> handleLogin() async {
               ],
             ),
           ),
-          const Icon(
-            Icons.lock_outline,
-            color: tertiary,
-            size: 18,
-          ),
+          const Icon(Icons.lock_outline, color: tertiary, size: 18),
           const SizedBox(width: 4),
           Text(
             '256-BIT SSL',
-            style: jakarta(
-              size: 10,
-              weight: FontWeight.w600,
-              color: tertiary,
-            ),
+            style: jakarta(size: 10, weight: FontWeight.w600, color: tertiary),
           ),
         ],
       ),
@@ -421,11 +366,7 @@ Future<void> handleLogin() async {
             height: 6,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  primaryContainer,
-                  primary,
-                  primaryFixed,
-                ],
+                colors: [primaryContainer, primary, primaryFixed],
               ),
             ),
           ),
@@ -440,10 +381,7 @@ Future<void> handleLogin() async {
                     Expanded(
                       child: Text(
                         'Masuk ke Platform',
-                        style: jakarta(
-                          size: 20,
-                          weight: FontWeight.w700,
-                        ),
+                        style: jakarta(size: 20, weight: FontWeight.w700),
                       ),
                     ),
                     Container(
@@ -457,10 +395,7 @@ Future<void> handleLogin() async {
                       ),
                       child: Text(
                         'v4.8.2',
-                        style: mono(
-                          size: 11,
-                          color: onSurfaceVariant,
-                        ),
+                        style: mono(size: 11, color: onSurfaceVariant),
                       ),
                     ),
                   ],
@@ -470,10 +405,7 @@ Future<void> handleLogin() async {
 
                 Text(
                   'Internal Portal PT Equityworld Futures',
-                  style: jakarta(
-                    size: 13,
-                    color: onSurfaceVariant,
-                  ),
+                  style: jakarta(size: 13, color: onSurfaceVariant),
                 ),
 
                 const SizedBox(height: 20),
@@ -481,10 +413,7 @@ Future<void> handleLogin() async {
                 // Email
                 Text(
                   'Email Perusahaan / ID Analis',
-                  style: jakarta(
-                    size: 13,
-                    weight: FontWeight.w600,
-                  ),
+                  style: jakarta(size: 13, weight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 4),
@@ -492,9 +421,7 @@ Future<void> handleLogin() async {
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: mono(
-                    size: 13,
-                  ),
+                  style: mono(size: 13),
                   decoration: inputDecoration(
                     hint: 'nama.pengguna@equityworld.co.id',
                     icon: Icons.badge_outlined,
@@ -509,10 +436,7 @@ Future<void> handleLogin() async {
                     Expanded(
                       child: Text(
                         'Kata Sandi Akses',
-                        style: jakarta(
-                          size: 13,
-                          weight: FontWeight.w600,
-                        ),
+                        style: jakarta(size: 13, weight: FontWeight.w600),
                       ),
                     ),
                     TextButton(
@@ -520,8 +444,7 @@ Future<void> handleLogin() async {
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
                         minimumSize: const Size(0, 0),
-                        tapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
                         'Lupa Password?',
@@ -540,9 +463,7 @@ Future<void> handleLogin() async {
                 TextField(
                   controller: passwordController,
                   obscureText: obscurePassword,
-                  style: mono(
-                    size: 13,
-                  ),
+                  style: mono(size: 13),
                   decoration: inputDecoration(
                     hint: '••••••••••••',
                     icon: Icons.key_outlined,
@@ -580,10 +501,7 @@ Future<void> handleLogin() async {
                     Expanded(
                       child: Text(
                         'Ingat sesi di perangkat aman ini',
-                        style: jakarta(
-                          size: 13,
-                          color: onSurface,
-                        ),
+                        style: jakarta(size: 13, color: onSurface),
                       ),
                     ),
                   ],
@@ -598,11 +516,7 @@ Future<void> handleLogin() async {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          primaryContainer,
-                          primary,
-                          primaryContainer,
-                        ],
+                        colors: [primaryContainer, primary, primaryContainer],
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -619,16 +533,14 @@ Future<void> handleLogin() async {
                       ),
                       child: isLoading
                           ? Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
                                       Colors.white,
                                     ),
                                   ),
@@ -645,8 +557,7 @@ Future<void> handleLogin() async {
                               ],
                             )
                           : Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(
                                   Icons.verified_user_outlined,
@@ -680,8 +591,7 @@ Future<void> handleLogin() async {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
                           statusIcon,
@@ -727,14 +637,10 @@ Future<void> handleLogin() async {
                 Expanded(
                   child: RichText(
                     text: TextSpan(
-                      style: jakarta(
-                        size: 10,
-                        color: onSurfaceVariant,
-                      ),
+                      style: jakarta(size: 10, color: onSurfaceVariant),
                       children: const [
                         TextSpan(
-                          text:
-                              'Sistem Informasi Internal Terproteksi',
+                          text: 'Sistem Informasi Internal Terproteksi',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: onSurface,
@@ -786,17 +692,11 @@ Future<void> handleLogin() async {
               children: [
                 Text(
                   'IT Desk Support',
-                  style: jakarta(
-                    size: 10,
-                    weight: FontWeight.w600,
-                  ),
+                  style: jakarta(size: 10, weight: FontWeight.w600),
                 ),
                 Text(
                   'Ext. 4410 (Equity Tower LT. 22)',
-                  style: jakarta(
-                    size: 13,
-                    color: secondary,
-                  ),
+                  style: jakarta(size: 13, color: secondary),
                 ),
               ],
             ),
@@ -806,20 +706,14 @@ Future<void> handleLogin() async {
             style: TextButton.styleFrom(
               backgroundColor: const Color(0xFFD3E4FE),
               foregroundColor: onSurface,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
             child: Text(
               'Bantuan',
-              style: jakarta(
-                size: 10,
-                weight: FontWeight.w600,
-              ),
+              style: jakarta(size: 10, weight: FontWeight.w600),
             ),
           ),
         ],
@@ -833,20 +727,13 @@ Future<void> handleLogin() async {
         Text(
           'Terdaftar & Diawasi oleh Bappebti • Anggota ICDX & ICH',
           textAlign: TextAlign.center,
-          style: jakarta(
-            size: 10,
-            weight: FontWeight.w600,
-            color: secondary,
-          ),
+          style: jakarta(size: 10, weight: FontWeight.w600, color: secondary),
         ),
         const SizedBox(height: 4),
         Text(
           '© 2025 PT Equityworld Futures. Hak Cipta Dilindungi Undang-Undang.',
           textAlign: TextAlign.center,
-          style: jakarta(
-            size: 10,
-            color: secondary,
-          ),
+          style: jakarta(size: 10, color: secondary),
         ),
       ],
     );
