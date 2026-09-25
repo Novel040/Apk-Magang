@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class BeritaPage extends StatefulWidget {
   const BeritaPage({super.key});
 
-  @override
+ @override
   State<BeritaPage> createState() => _BeritaPageState();
 }
 
@@ -25,50 +27,63 @@ class _BeritaPageState extends State<BeritaPage> {
     Icons.factory,
   ];
 
-  final List<Map<String, dynamic>> news = [
-    {
-      'image':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuCFce_j-LfUpcLR6W75pSjAM3nT8CqmRWvLAd9Akop6Tv1WTxOHsGqO4SmrMKcRiPiyj8YWF2P9VssUAYJXNum5wcNpBdkuEA-gDVdAjbOWXLyBY43tGAHao8Omd7EZPpSYCGGUjuQMJIy8X63fRbOp1i0ImalfFGkYBBHApZ0XiS0W06uNRSeUZRvBw4wf8An-mAjX_uBQmjI9ylpoxgZUM_Nptom6rc7D4HFOZcm5YTso3K82s4ZN7w',
-      'category': 'Analisis Makro',
-      'source': 'Divisi Riset PT Equityworld Futures',
-      'date': '24 Mei 2025 • 09:30 WIB',
-      'title': 'Permintaan Emas Bank Sentral Global Cetak Rekor Kuartal Ini',
-      'description':
-          'Cadangan devisa emas terus ditingkatkan oleh bank sentral Asia di tengah diversifikasi aset cadangan valuta asing. Gelombang akumulasi fisik memperkokoh fondasi tren bull run jangka menengah komoditas emas global.',
-      'metric1Value': '+290 Ton',
-      'metric2Value': 'Strong Buy',
-    },
-    {
-      'image':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnf8QPcIMQ0L41likfBCU2g8li5y8KkkIBFdecxo4BVgC7ASHTuekyLj2-Dl6ylw8EdFQzttnyQC5VasZ1osgZbIJh7hbt4QFMqW3z7T1yyjhjCRUf5ATfXqIM_UfFnQ7dK-5fRRTfhV3X_RQ7DBHo1YhR9EjY__ms-E5bRWPo8oRZE4-MblFPdfPGAnsZizLdJITSfFWrg0jiUmROqGVmmAklImjFGmVUm5rGcrycxfU6u21YvjcJg',
-      'category': 'Derivatif',
-      'source': 'News Maker',
-      'date': '23 Mei 2025 • 15:45 WIB',
-      'title':
-          'Pergerakan Emas LGD dan HSI Dipengaruhi Rilis Data Ketenagakerjaan AS',
-      'description':
-          'Volatilitas harga emas fisik dan kontrak berjangka menunjukkan konsolidasi di atas level support psikologis. Pelaku pasar mencermati sinyal suku bunga rujukan global.',
-      'metric': '\$2,365.20',
-    },
-    {
-      'image':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBDBs0DMNQKJcCMKeuRc_aJbVmsf9LxCOFlWUJLYcLSP4cZ7VspHv8BRtuoDdwNRCMJS75ONgh5XeND1xXzpLURsC2NBleIpAs0nP973iI_GwOEeSAqHlKyZd3o6YoShQhZLMzeS-qwkdF2i3IHDSR7PtVC-oTW-lloFCBM0_jlEseA8tFxZo6zj1-tz3aHzpFJMl7fH6K5s5GE0gLhRTKx_jCa7TaGfhUcTlQcVXwFxbxQ0GxGWFYMsQ',
-      'category': 'Fisik Domestik',
-      'source': 'Market Desk EWF',
-      'date': '22 Mei 2025 • 11:15 WIB',
-      'title':
-          'Kebutuhan Emas Batangan SNI untuk Pasar Domestik Tetap Kokoh',
-      'description':
-          'Minat investor ritel dan institusi terhadap emas fisik standar nasional Indonesia memperlihatkan tren positif dengan peningkatan premi minting yang stabil di pasar lokal.',
-      'metric': 'IDR 1.340.000/gr',
-    },
-  ];
+  List<Map<String, dynamic>> news = [];
+
+  bool isLoadingNews = true;
+  String newsError = '';
+
+@override
+void initState() {
+  super.initState();
+  _loadNews();
+}
+
+Future<void> _loadNews() async {
+  try {
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2/api/news'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+
+      setState(() {
+        news = data.map<Map<String, dynamic>>((item) {
+          return {
+            'image': item['image'] ?? '',
+            'category': item['category'] ?? 'Emas',
+            'source': item['source'] ?? 'Newsmaker.id',
+            'date': item['published_at'] ?? '',
+            'title': item['title'] ?? '',
+            'description': item['content'] ?? '',
+            'metric': '-',
+            'metric1Value': '-',
+            'metric2Value': '-',
+          };
+        }).toList();
+
+        isLoadingNews = false;
+        newsError = '';
+      });
+    } else {
+      setState(() {
+        isLoadingNews = false;
+        newsError = 'Gagal mengambil berita (${response.statusCode})';
+      });
+    }
+  } catch (e) {
+  setState(() {
+    isLoadingNews = false;
+    newsError = 'Error: $e';
+  });
+}
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
-      body: SafeArea(
+      body: SafeArea( 
         bottom: false,
         child: Column(
           children: [
@@ -455,15 +470,98 @@ class _BeritaPageState extends State<BeritaPage> {
   // ============================================================
 
   Widget _buildNewsFeed() {
+    // =========================
+    // LOADING
+    // =========================
+    if (isLoadingNews) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 40,
+        ),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // =========================
+    // ERROR
+    // =========================
+    if (newsError.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 30,
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 40,
+              color: Color(0xFF785600),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              newsError,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF4F4535),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loadNews,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // =========================
+    // DATA KOSONG
+    // =========================
+    if (news.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 40,
+        ),
+        child: Center(
+          child: Text(
+            'Belum ada berita.',
+            style: TextStyle(
+              color: Color(0xFF4F4535),
+              fontSize: 13,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // =========================
+    // BERITA BERHASIL DIMUAT
+    // =========================
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
+          // Berita utama
           _buildFeaturedNews(news[0]),
-          const SizedBox(height: 16),
-          _buildCompactNews(news[1]),
-          const SizedBox(height: 16),
-          _buildCompactNews(news[2]),
+
+          // Berita kedua
+          if (news.length > 1) ...[
+            const SizedBox(height: 16),
+            _buildCompactNews(news[1]),
+          ],
+
+          // Berita ketiga
+          if (news.length > 2) ...[
+            const SizedBox(height: 16),
+            _buildCompactNews(news[2]),
+          ],
         ],
       ),
     );
@@ -473,237 +571,238 @@ class _BeritaPageState extends State<BeritaPage> {
   // FEATURED NEWS
   // ============================================================
 
-  Widget _buildFeaturedNews(Map<String, dynamic> item) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              SizedBox(
-                height: 210,
-                width: double.infinity,
-                child: Image.network(
-                  item['image'],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _imagePlaceholder();
-                  },
-                ),
+Widget _buildFeaturedNews(Map<String, dynamic> item) {
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.07),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          children: [
+            SizedBox(
+              height: 210,
+              width: double.infinity,
+              child: Image.network(
+                item['image'] ?? '',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _imagePlaceholder();
+                },
               ),
-              Positioned(
-                left: 14,
-                bottom: 14,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF785600),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    item['category'].toString().toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSourceDate(
-                  item['source'],
-                  item['date'],
-                  Icons.business,
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  item['title'],
-                  style: const TextStyle(
-                    color: Color(0xFF0B1C30),
-                    fontSize: 16,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item['description'],
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF4F4535),
-                    fontSize: 13,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 13),
-                _buildFeaturedMetrics(item),
-                const SizedBox(height: 14),
-                _buildNewsActions(),
-              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // COMPACT NEWS
-  // ============================================================
-
-  Widget _buildCompactNews(Map<String, dynamic> item) {
-    final bool derivative = item['category'] == 'Derivatif';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Stack(
+            Positioned(
+              left: 14,
+              bottom: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF785600),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  item['category'].toString().toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 180,
-                width: double.infinity,
-                child: Image.network(
-                  item['image'],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _imagePlaceholder();
-                  },
+              _buildSourceDate(
+                item['source'],
+                item['date'],
+                Icons.business,
+              ),
+              const SizedBox(height: 9),
+              Text(
+                item['title'],
+                style: const TextStyle(
+                  color: Color(0xFF0B1C30),
+                  fontSize: 16,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: derivative
-                        ? const Color(0xFF565E74)
-                        : const Color(0xFF006947),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    item['category'].toString().toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+              const SizedBox(height: 8),
+              Text(
+                item['description'],
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF4F4535),
+                  fontSize: 13,
+                  height: 1.5,
                 ),
               ),
+              const SizedBox(height: 13),
+              _buildFeaturedMetrics(item),
+              const SizedBox(height: 14),
+              _buildNewsActions(),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSourceDate(
-                  item['source'],
-                  item['date'],
-                  derivative ? Icons.newspaper : Icons.storefront,
+        ),
+      ],
+    ),
+  );
+}
+
+// ============================================================
+// COMPACT NEWS
+// ============================================================
+
+Widget _buildCompactNews(Map<String, dynamic> item) {
+  final bool derivative = item['category'] == 'Derivatif';
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.07),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      children: [
+        Stack(
+          children: [
+            SizedBox(
+              height: 180,
+              width: double.infinity,
+              child: Image.network(
+                item['image'] ?? '',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _imagePlaceholder();
+                },
+              ),
+            ),
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 5,
                 ),
-                const SizedBox(height: 9),
-                Text(
-                  item['title'],
+                decoration: BoxDecoration(
+                  color: derivative
+                      ? const Color(0xFF565E74)
+                      : const Color(0xFF006947),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  item['category'].toString().toUpperCase(),
                   style: const TextStyle(
-                    color: Color(0xFF0B1C30),
-                    fontSize: 16,
-                    height: 1.35,
+                    color: Colors.white,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  item['description'],
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF4F4535),
-                    fontSize: 13,
-                    height: 1.5,
-                  ),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSourceDate(
+                item['source'],
+                item['date'],
+                derivative
+                    ? Icons.newspaper
+                    : Icons.storefront,
+              ),
+              const SizedBox(height: 9),
+              Text(
+                item['title'],
+                style: const TextStyle(
+                  color: Color(0xFF0B1C30),
+                  fontSize: 16,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item['description'],
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF4F4535),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: derivative
+                            ? const Color(0xFFE5EEFF)
+                            : const Color(0xFFE8F7F0),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        derivative
+                            ? 'Support: ${item['metric']}'
+                            : 'Spot Antam: ${item['metric']}',
+                        style: TextStyle(
                           color: derivative
-                              ? const Color(0xFFE5EEFF)
-                              : const Color(0xFFE8F7F0),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          derivative
-                              ? 'Support: ${item['metric']}'
-                              : 'Spot Antam: ${item['metric']}',
-                          style: TextStyle(
-                            color: derivative
-                                ? const Color(0xFF4F4535)
-                                : const Color(0xFF006947),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
+                              ? const Color(0xFF4F4535)
+                              : const Color(0xFF006947),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    _buildReadButton(),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  const SizedBox(width: 10),
+                  _buildReadButton(),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
+        ),
+      ],
+    ),
+  );
+}
   // ============================================================
   // SOURCE + DATE
   // ============================================================

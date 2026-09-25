@@ -6,6 +6,8 @@ import 'pivot_point_page.dart';
 import 'kalkulator_page.dart';
 import 'histori_page.dart';
 import 'informasi_pt_page.dart';
+import 'notifications_screen.dart';
+import 'profile_screen.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -96,30 +98,47 @@ class DashboardPage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.notifications_none,
-              color: textPrimary,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: surfaceContainer,
-              child: Text(
-                'A',
-                style: jakarta(
-                  size: 13,
-                  weight: FontWeight.w700,
-                  color: primary,
-                ),
-              ),
-            ),
-          ),
-        ],
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationsScreen(),
       ),
-
+    );
+  },
+  icon: const Icon(
+    Icons.notifications_none,
+    color: textPrimary,
+  ),
+),
+          Padding(
+  padding: const EdgeInsets.only(right: 12),
+  child: InkWell(
+    borderRadius: BorderRadius.circular(30),
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ProfileScreen(),
+        ),
+      );
+    },
+    child: CircleAvatar(
+      radius: 18,
+      backgroundColor: surfaceContainer,
+      child: Text(
+        'A',
+        style: jakarta(
+          size: 13,
+          weight: FontWeight.w700,
+          color: primary,
+           ),
+          ),
+        ),
+      ),
+    ),
+  ],
+),
       // ============================================================
       // DRAWER
       // ============================================================
